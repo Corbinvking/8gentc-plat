@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ThemeProvider } from "@/components/theme-provider"
+import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Home() {
   const [viewMode, setViewMode] = useState<"node" | "mermaid" | "text">("node")
@@ -40,8 +42,21 @@ export default function Home() {
         <header className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white">
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
-              <div className="w-6 h-6 bg-gradient-to-r from-orange-300 to-orange-400 rounded-md mr-2"></div>
-              <span className="font-medium">Personal</span>
+              <a 
+                href="https://8gentc.com" 
+                className="flex items-center gap-2 z-50"
+              >
+                <div className="w-8 h-8 relative">
+                  <Image 
+                    src="/8gentc-logo.svg" 
+                    alt="8gentc logo" 
+                    width={32} 
+                    height={32} 
+                    className="w-full h-full"
+                  />
+                </div>
+                <span className="text-xl font-semibold text-gray-800">8gentc</span>
+              </a>
               <span className="ml-2 text-xs px-2 py-0.5 bg-gray-100 rounded">Free</span>
               <ChevronDown className="h-4 w-4 ml-1 text-gray-500" />
             </div>
