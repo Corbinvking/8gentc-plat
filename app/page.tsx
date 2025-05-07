@@ -1,20 +1,27 @@
 "use client"
 
-import { useState } from "react"
-import { ChevronDown, Clock, MessageCircle, Target, Calendar } from "lucide-react"
+import { useState, useEffect } from "react"
+import { ChevronDown, Clock, MessageCircle, Target, Calendar, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ThemeProvider } from "@/components/theme-provider"
 import Link from 'next/link'
 import Image from 'next/image'
+import { useAuth } from "@/lib/auth"
 
 export default function Home() {
+  const { user, logout } = useAuth()
   const [viewMode, setViewMode] = useState<"node" | "mermaid" | "text">("node")
   const [session, setSession] = useState("20")
   const [activeStage, setActiveStage] = useState<"context" | "goals" | "timelines">("context")
   const [isFullScreen, setIsFullScreen] = useState(false)
   const [chatViewMode, setChatViewMode] = useState<"overhead" | "chat">("chat")
+
+  // Log the user state for debugging
+  useEffect(() => {
+    console.log("Home page user state:", user)
+  }, [user])
 
   const [showProjectSummary, setShowProjectSummary] = useState(false)
   const [contextCheckpoints, setContextCheckpoints] = useState({
@@ -197,6 +204,22 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            {/* User info and logout button - always show for demo purposes */}
+            <div className="flex items-center gap-3 mr-3">
+              <div className="text-sm text-gray-600">
+                <span className="font-medium">{user ? user.name : 'Demo User'}</span>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={logout}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-1"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </Button>
+            </div>
+            
             <Button className="bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200 shadow-sm flex items-center gap-1.5 px-3">
               <svg
                 xmlns="http://www.w3.org/2000/svg"

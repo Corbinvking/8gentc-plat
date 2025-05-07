@@ -7,5 +7,16 @@ import {
 } from 'next-themes'
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
-  return <NextThemesProvider {...props}>{children}</NextThemesProvider>
+  return (
+    <NextThemesProvider
+      attribute="data-theme"
+      defaultTheme="light"
+      enableSystem={true}
+      disableTransitionOnChange
+      enableColorScheme={false}
+      {...props}
+    >
+      {children}
+    </NextThemesProvider>
+  )
 }
