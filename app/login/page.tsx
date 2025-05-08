@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/lib/auth"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login, signup, isLoading: authLoading } = useAuth()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("login")
   
@@ -23,6 +25,7 @@ export default function LoginPage() {
   // Form errors
   const [loginError, setLoginError] = useState("")
   const [signupError, setSignupError] = useState("")
+  const [signupSuccess, setSignupSuccess] = useState(false)
 
   // Clear any existing auth cookies when login page loads
   useEffect(() => {
@@ -38,9 +41,22 @@ export default function LoginPage() {
     
     try {
       await login(loginData.email, loginData.password)
+      // Show success toast
+      toast({
+        title: "Login successful",
+        description: "You have been logged in successfully.",
+        variant: "default",
+      })
       // Redirect is handled in the auth context
-    } catch (error) {
-      setLoginError("Invalid email or password")
+    } catch (error: any) {
+      console.error("Login error:", error)
+      const errorMessage = error?.message || "Invalid email or password"
+      setLoginError(errorMessage)
+      toast({
+        title: "Login failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -49,13 +65,51 @@ export default function LoginPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setSignupError("")
+    setSignupSuccess(false)
     setIsLoading(true)
     
     try {
       await signup(signupData.name, signupData.email, signupData.password)
-      // Redirect is handled in the auth context
-    } catch (error) {
-      setSignupError("Error creating account. Please try again.")
+      
+      // After sign up, try to ensure the profile exists by using the API
+      try {
+        const profileResponse = await fetch('/api/profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: signupData.name })
+        })
+        
+        if (!profileResponse.ok) {
+          console.warn("Additional profile creation via API failed, but signup was successful")
+        }
+      } catch (profileError) {
+        console.warn("Profile API call failed, but signup was successful:", profileError)
+      }
+      
+      // Show success message and prompt to check email
+      setSignupSuccess(true)
+      toast({
+        title: "Account created",
+        description: "Your account has been created and you are now logged in.",
+        variant: "default",
+      })
+      
+      // Clear the form
+      setSignupData({ name: "", email: "", password: "" })
+      
+      // Redirect to dashboard instead of waiting for email confirmation
+      router.push("/dashboard")
+    } catch (error: any) {
+      console.error("Signup error:", error)
+      const errorMessage = error?.message || "Error creating account. Please try again."
+      setSignupError(errorMessage)
+      toast({
+        title: "Registration failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
@@ -138,60 +192,76 @@ export default function LoginPage() {
           </TabsContent>
           
           <TabsContent value="signup">
-            <form onSubmit={handleSignup} className="space-y-4">
-              {signupError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md">
-                  {signupError}
+            {signupSuccess ? (
+              <div className="space-y-6">
+                <div className="p-4 bg-green-50 border border-green-200 text-green-700 rounded-md space-y-2">
+                  <p className="font-medium">Account created successfully!</p>
+                  <p>Please check your email for a confirmation link before signing in.</p>
                 </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  type="text" 
-                  placeholder="Your full name" 
-                  required 
-                  value={signupData.name}
-                  onChange={(e) => setSignupData({...signupData, name: e.target.value})}
-                />
+                <Button 
+                  onClick={() => setActiveTab("login")}
+                  className="w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600"
+                >
+                  Go to Sign In
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-email">Email</Label>
-                <Input 
-                  id="signup-email" 
-                  type="email" 
-                  placeholder="Your email address" 
-                  required 
-                  value={signupData.email}
-                  onChange={(e) => setSignupData({...signupData, email: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-password">Password</Label>
-                <Input 
-                  id="signup-password" 
-                  type="password" 
-                  placeholder="Create a password" 
-                  required 
-                  value={signupData.password}
-                  onChange={(e) => setSignupData({...signupData, password: e.target.value})}
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600" 
-                disabled={isLoading || authLoading}
-              >
-                {isLoading ? 
-                  <div className="flex items-center gap-2">
-                    <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                    <span>Creating account...</span>
-                  </div> : 
-                  "Create Account"
-                }
-              </Button>
-            </form>
+            ) : (
+              <form onSubmit={handleSignup} className="space-y-4">
+                {signupError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md">
+                    {signupError}
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input 
+                    id="name" 
+                    type="text" 
+                    placeholder="Your full name" 
+                    required 
+                    value={signupData.name}
+                    onChange={(e) => setSignupData({...signupData, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input 
+                    id="signup-email" 
+                    type="email" 
+                    placeholder="Your email address" 
+                    required 
+                    value={signupData.email}
+                    onChange={(e) => setSignupData({...signupData, email: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input 
+                    id="signup-password" 
+                    type="password" 
+                    placeholder="Create a password (min. 6 characters)" 
+                    required 
+                    minLength={6}
+                    value={signupData.password}
+                    onChange={(e) => setSignupData({...signupData, password: e.target.value})}
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600" 
+                  disabled={isLoading || authLoading}
+                >
+                  {isLoading ? 
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                      <span>Creating account...</span>
+                    </div> : 
+                    "Create Account"
+                  }
+                </Button>
+              </form>
+            )}
           </TabsContent>
         </Tabs>
         

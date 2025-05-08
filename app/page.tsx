@@ -9,14 +9,33 @@ import { ThemeProvider } from "@/components/theme-provider"
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from "@/lib/auth"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { UserCircle, Settings, LayoutDashboard } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function Home() {
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
+  const router = useRouter()
   const [viewMode, setViewMode] = useState<"node" | "mermaid" | "text">("node")
   const [session, setSession] = useState("20")
   const [activeStage, setActiveStage] = useState<"context" | "goals" | "timelines">("context")
   const [isFullScreen, setIsFullScreen] = useState(false)
   const [chatViewMode, setChatViewMode] = useState<"overhead" | "chat">("chat")
+
+  // Redirect unauthenticated users to login page
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, isLoading, router])
 
   // Log the user state for debugging
   useEffect(() => {
@@ -41,6 +60,31 @@ export default function Home() {
     mediumTermValue: true,
     longTermValue: false,
   })
+
+  // Helper to get user initials for avatar
+  const getUserInitials = () => {
+    if (!user || !user.name) return "U"
+    const nameParts = user.name.split(" ")
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+    }
+    return nameParts[0][0].toUpperCase()
+  }
+
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="h-8 w-8 rounded-full border-4 border-gray-300 border-t-orange-500 animate-spin"></div>
+        <span className="ml-3">Loading...</span>
+      </div>
+    )
+  }
+  
+  // If not authenticated, don't render anything (will redirect via effect)
+  if (!user) {
+    return null
+  }
 
   return (
     <ThemeProvider>
@@ -74,7 +118,8 @@ export default function Home() {
                 className="flex items-center text-gray-800 hover:text-orange-600 transition-colors px-3 py-1.5 rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 shadow-sm border border-orange-200"
               >
                 <div className="w-3 h-3 bg-gradient-to-r from-orange-400 to-orange-500 rounded-full mr-2"></div>
-                Business Plan Collaboration
+                Com Store
+                <span className="ml-2 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">Active Project</span>
                 <ChevronDown
                   className={`h-4 w-4 ml-1.5 transition-transform duration-200 ${showProjectSummary ? "transform rotate-180" : ""}`}
                 />
@@ -105,11 +150,11 @@ export default function Home() {
                         Business Context
                       </h4>
                       <ul className="pl-4 list-disc text-gray-600 text-xs space-y-1.5">
-                        <li>Sustainable fashion e-commerce platform</li>
-                        <li>Target: eco-conscious consumers (25-40)</li>
-                        <li>Products: eco-friendly clothing & accessories</li>
-                        <li>Funding: $50,000 initial capital</li>
-                        <li>Team: 2 co-founders (design & marketing)</li>
+                        <li>E-commerce platform with AI-powered chatbot</li>
+                        <li>Target: tech-savvy shoppers (18-45)</li>
+                        <li>Products: electronics, fashion, home goods</li>
+                        <li>Funding: $120,000 initial investment</li>
+                        <li>Team: developers, designers, and marketers</li>
                       </ul>
                     </div>
 
@@ -120,19 +165,19 @@ export default function Home() {
                       </h4>
                       <ul className="pl-4 list-disc text-gray-600 text-xs space-y-1.5">
                         <li>
-                          <strong>MVP Website:</strong> 20 products, 3 months
+                          <strong>Launch:</strong> MVP with 100+ products in 2 months
                         </li>
                         <li>
-                          <strong>Customers:</strong> 500 customers, 1,000 subscribers
+                          <strong>Customers:</strong> 2,000 users, 5,000 newsletter subscribers
                         </li>
                         <li>
-                          <strong>Revenue:</strong> $100,000 in year 1
+                          <strong>Revenue:</strong> $250,000 in year 1
                         </li>
                         <li>
-                          <strong>Sustainability:</strong> Carbon-neutral in 18 months
+                          <strong>Engagement:</strong> 40% chatbot utilization rate
                         </li>
                         <li>
-                          <strong>Supply Chain:</strong> 5 sustainable manufacturers
+                          <strong>Conversion:</strong> 3.5% conversion from AI recommendations
                         </li>
                       </ul>
                     </div>
@@ -144,19 +189,19 @@ export default function Home() {
                       </h4>
                       <ul className="pl-4 list-disc text-gray-600 text-xs space-y-1.5">
                         <li>
-                          <strong>Months 1-2:</strong> Business setup, suppliers
+                          <strong>Months 1-2:</strong> Platform development, AI integration
                         </li>
                         <li>
-                          <strong>Month 3:</strong> Website development
+                          <strong>Month 3:</strong> Beta testing, product onboarding
                         </li>
                         <li>
-                          <strong>Month 4:</strong> Official launch
+                          <strong>Month 4:</strong> Full public launch
                         </li>
                         <li>
-                          <strong>Month 6:</strong> First milestone review
+                          <strong>Month 6:</strong> First major feature update
                         </li>
                         <li>
-                          <strong>Month 12:</strong> Year 1 evaluation
+                          <strong>Month 12:</strong> Mobile app launch
                         </li>
                       </ul>
                     </div>
@@ -204,97 +249,85 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {/* User info and logout button - always show for demo purposes */}
-            <div className="flex items-center gap-3 mr-3">
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{user ? user.name : 'Demo User'}</span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={logout}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-1"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Logout</span>
+            {/* Profile dropdown menu */}
+            <div className="flex items-center gap-3">
+              <Button className="bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-300">
+                Submit
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-arrow-up-right ml-1"
+                >
+                  <path d="M7 7h10v10"></path>
+                  <path d="M7 17 17 7"></path>
+                </svg>
               </Button>
+              
+              <Button className="bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200 shadow-sm flex items-center gap-1.5 px-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="lucide lucide-plug-2"
+                >
+                  <path d="M9 2v6"></path>
+                  <path d="M15 2v6"></path>
+                  <path d="M12 17v5"></path>
+                  <path d="M5 8h14"></path>
+                  <path d="M6 11V8h12v3a6 6 0 1 1-12 0v0Z"></path>
+                </svg>
+                Integrations
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8 border border-orange-100">
+                      <AvatarFallback className="bg-orange-100 text-orange-700">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="cursor-pointer flex w-full items-center">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      <span>Dashboard</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="cursor-pointer flex w-full items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-red-600 cursor-pointer"
+                    onClick={logout}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Logout</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            
-            <Button className="bg-gradient-to-r from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 text-purple-700 border border-purple-200 shadow-sm flex items-center gap-1.5 px-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-plug-2"
-              >
-                <path d="M9 2v6"></path>
-                <path d="M15 2v6"></path>
-                <path d="M12 17v5"></path>
-                <path d="M5 8h14"></path>
-                <path d="M6 11V8h12v3a6 6 0 1 1-12 0v0Z"></path>
-              </svg>
-              Integrations
-            </Button>
-            <Button variant="ghost" size="icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-settings"
-              >
-                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-            </Button>
-            <Button variant="ghost" size="icon">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-download"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" x2="12" y1="15" y2="3"></line>
-              </svg>
-            </Button>
-            <Button className="bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-300">
-              Submit
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="lucide lucide-arrow-up-right ml-1"
-              >
-                <path d="M7 7h10v10"></path>
-                <path d="M7 17 17 7"></path>
-              </svg>
-            </Button>
-            <div className="w-8 h-8 bg-orange-400 rounded-full"></div>
           </div>
         </header>
 
@@ -566,11 +599,11 @@ export default function Home() {
                         </div>
                       </div>
                       <ul className="space-y-2 pl-6 list-disc mb-4">
-                        <li>Sustainable fashion e-commerce platform</li>
-                        <li>Target: eco-conscious consumers (25-40)</li>
-                        <li>Products: eco-friendly clothing & accessories</li>
-                        <li>Funding: $50,000 initial capital</li>
-                        <li>Team: 2 co-founders (design & marketing)</li>
+                        <li>E-commerce platform with AI-powered chatbot</li>
+                        <li>Target: tech-savvy shoppers (18-45)</li>
+                        <li>Products: electronics, fashion, home goods</li>
+                        <li>Funding: $120,000 initial investment</li>
+                        <li>Team: developers, designers, and marketers</li>
                       </ul>
 
                       <div className="mt-4 border-t border-orange-200 pt-3">
@@ -618,11 +651,11 @@ export default function Home() {
                         <p>I've captured your business context. Here's what I understand:</p>
 
                         <ul className="mt-4 space-y-3 pl-6 list-disc">
-                          <li>You're launching a sustainable fashion e-commerce platform</li>
-                          <li>Target audience: environmentally conscious consumers aged 25-40</li>
-                          <li>Initial product line includes eco-friendly clothing and accessories</li>
-                          <li>You have secured initial funding of $50,000</li>
-                          <li>You have 2 co-founders with complementary skills in fashion design and marketing</li>
+                          <li>You're launching an e-commerce platform with AI-powered chatbot</li>
+                          <li>Target audience: tech-savvy shoppers aged 18-45</li>
+                          <li>Initial product line includes electronics, fashion, and home goods</li>
+                          <li>You have secured initial investment of $120,000</li>
+                          <li>You have a team of experienced developers, designers, and marketers</li>
                         </ul>
 
                         <p className="mt-4">Is there anything else about your business context that I should know?</p>
@@ -645,19 +678,19 @@ export default function Home() {
                       </div>
                       <ul className="space-y-2 pl-6 list-disc mb-4">
                         <li>
-                          <strong>MVP Website:</strong> 20 products, 3 months
+                          <strong>Launch:</strong> MVP with 100+ products in 2 months
                         </li>
                         <li>
-                          <strong>Customers:</strong> 500 customers, 1,000 subscribers (6 months)
+                          <strong>Customers:</strong> 2,000 users, 5,000 newsletter subscribers
                         </li>
                         <li>
-                          <strong>Revenue:</strong> $100,000 in year 1
+                          <strong>Revenue:</strong> $250,000 in year 1
                         </li>
                         <li>
-                          <strong>Sustainability:</strong> Carbon-neutral in 18 months
+                          <strong>Engagement:</strong> 40% chatbot utilization rate
                         </li>
                         <li>
-                          <strong>Supply Chain:</strong> 5 sustainable manufacturers in year 1
+                          <strong>Conversion:</strong> 3.5% conversion from AI recommendations
                         </li>
                       </ul>
 
@@ -726,23 +759,23 @@ export default function Home() {
                         <ol className="mt-4 space-y-3 pl-6 list-decimal">
                           <li>
                             <strong>Launch MVP Website</strong>
-                            <p>Launch a minimum viable product website with 20 products within 3 months</p>
+                            <p>Launch a minimum viable product website with 100+ products within 2 months</p>
                           </li>
                           <li>
                             <strong>Customer Acquisition</strong>
-                            <p>Acquire 500 customers and achieve 1,000 email subscribers within 6 months of launch</p>
+                            <p>Acquire 2,000 users and achieve 5,000 newsletter subscribers within 6 months of launch</p>
                           </li>
                           <li>
                             <strong>Revenue Target</strong>
-                            <p>Generate $100,000 in revenue within the first year of operation</p>
+                            <p>Generate $250,000 in revenue within the first year of operation</p>
                           </li>
                           <li>
-                            <strong>Sustainability Metrics</strong>
-                            <p>Achieve carbon-neutral operations within 18 months of launch</p>
+                            <strong>Engagement</strong>
+                            <p>Achieve a 40% chatbot utilization rate</p>
                           </li>
                           <li>
-                            <strong>Supply Chain</strong>
-                            <p>Establish partnerships with at least 5 sustainable manufacturers by end of year 1</p>
+                            <strong>Conversion</strong>
+                            <p>Convert 3.5% of AI recommendations into sales</p>
                           </li>
                         </ol>
 
@@ -768,19 +801,19 @@ export default function Home() {
                       </div>
                       <ul className="space-y-2 pl-6 list-disc mb-4">
                         <li>
-                          <strong>Months 1-2:</strong> Business setup, supplier agreements
+                          <strong>Months 1-2:</strong> Platform development, AI integration
                         </li>
                         <li>
-                          <strong>Month 3:</strong> Website development, marketing prep
+                          <strong>Month 3:</strong> Beta testing, product onboarding
                         </li>
                         <li>
-                          <strong>Month 4:</strong> Official launch, initial campaign
+                          <strong>Month 4:</strong> Full public launch
                         </li>
                         <li>
-                          <strong>Month 6:</strong> First milestone review
+                          <strong>Month 6:</strong> First major feature update
                         </li>
                         <li>
-                          <strong>Month 12:</strong> Year 1 evaluation, Year 2 planning
+                          <strong>Month 12:</strong> Mobile app launch
                         </li>
                       </ul>
 
@@ -833,9 +866,9 @@ export default function Home() {
                             <div className="absolute w-4 h-4 bg-orange-400 rounded-full -left-[9px]"></div>
                             <div className="font-medium">Month 1-2: Foundation</div>
                             <ul className="mt-1 space-y-1 list-disc pl-5 text-xs">
-                              <li>Complete business registration and legal setup</li>
+                              <li>Complete platform development and AI integration</li>
                               <li>Finalize product selection and supplier agreements</li>
-                              <li>Begin website development</li>
+                              <li>Begin beta testing</li>
                             </ul>
                           </div>
 
@@ -853,7 +886,7 @@ export default function Home() {
                             <div className="absolute w-4 h-4 bg-orange-400 rounded-full -left-[9px]"></div>
                             <div className="font-medium">Month 4: Launch</div>
                             <ul className="mt-1 space-y-1 list-disc pl-5 text-xs">
-                              <li>Official website launch</li>
+                              <li>Full public launch</li>
                               <li>Execute initial marketing campaign</li>
                               <li>Begin customer acquisition efforts</li>
                             </ul>
@@ -861,21 +894,21 @@ export default function Home() {
 
                           <div className="relative pl-6 pb-4 border-l-2 border-orange-200">
                             <div className="absolute w-4 h-4 bg-orange-400 rounded-full -left-[9px]"></div>
-                            <div className="font-medium">Month 6: First Milestone Review</div>
+                            <div className="font-medium">Month 6: First Major Feature Update</div>
                             <ul className="mt-1 space-y-1 list-disc pl-5 text-xs">
-                              <li>Evaluate customer acquisition goals</li>
-                              <li>Analyze sales performance</li>
-                              <li>Adjust strategies based on data</li>
+                              <li>Implement first major feature update</li>
+                              <li>Analyze user engagement</li>
+                              <li>Adjust strategies based on feedback</li>
                             </ul>
                           </div>
 
                           <div className="relative pl-6">
                             <div className="absolute w-4 h-4 bg-orange-400 rounded-full -left-[9px]"></div>
-                            <div className="font-medium">Month 12: Year 1 Evaluation</div>
+                            <div className="font-medium">Month 12: Mobile App Launch</div>
                             <ul className="mt-1 space-y-1 list-disc pl-5 text-xs">
-                              <li>Comprehensive business review</li>
-                              <li>Assess all SMART goals</li>
-                              <li>Develop Year 2 strategy</li>
+                              <li>Launch mobile application</li>
+                              <li>Expand marketing efforts</li>
+                              <li>Prepare for Year 2 strategy</li>
                             </ul>
                           </div>
                         </div>
@@ -1008,7 +1041,7 @@ export default function Home() {
                         <path d="M12 15v6"></path>
                         <path d="M9 18h6"></path>
                       </svg>
-                      Node View
+                      Com Store Structure
                     </TabsTrigger>
                     <TabsTrigger
                       value="mermaid"
@@ -1032,7 +1065,7 @@ export default function Home() {
                         <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"></path>
                         <path d="M12 12v3"></path>
                       </svg>
-                      Mermaid View
+                      Com Store Timeline
                     </TabsTrigger>
                     <TabsTrigger
                       value="text"
@@ -1099,7 +1132,7 @@ export default function Home() {
                       <path d="M12 15v6"></path>
                       <path d="M9 18h6"></path>
                     </svg>
-                    Business Plan Structure
+                    Com Store Structure
                   </h2>
                   <div className="border border-gray-200 rounded-md flex-1 bg-white p-4 shadow-sm">
                     <div className="h-full flex items-center justify-center">
@@ -1166,7 +1199,7 @@ export default function Home() {
                       <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"></path>
                       <path d="M12 12v3"></path>
                     </svg>
-                    Business Timeline
+                    Com Store Timeline
                   </h2>
                   <div className="border border-gray-200 rounded-md flex-1 bg-white p-4 shadow-sm">
                     <div className="h-full flex items-center justify-center">
@@ -1271,69 +1304,64 @@ export default function Home() {
                   <div className="border border-gray-200 rounded-md flex-1 bg-white p-4 shadow-sm">
                     <div className="h-full overflow-auto">
                       <div className="prose max-w-none">
-                        <h3>Sustainable Fashion E-commerce Business Plan</h3>
+                        <h3>Com Store E-commerce Platform</h3>
                         <p>
-                          This business plan outlines the strategy for launching and growing a sustainable fashion
-                          e-commerce platform targeting environmentally conscious consumers aged 25-40.
+                          This technical plan outlines the strategy for building and growing an AI-powered e-commerce platform targeting tech-savvy shoppers aged 18-45.
                         </p>
 
                         <h4>Executive Summary</h4>
                         <p>
-                          Our sustainable fashion e-commerce platform will offer eco-friendly clothing and accessories
-                          that meet the growing demand for environmentally responsible products. With initial funding of
-                          $50,000 and a team of experienced co-founders with complementary skills in fashion design and
-                          marketing, we are well-positioned to capture market share in this growing segment.
+                          Com Store will offer a wide range of products including electronics, fashion, and home goods, enhanced by an AI-powered chatbot for personalized shopping assistance. With initial funding of $120,000 and a skilled team of developers, designers, and marketers, we are positioned to capture market share in the competitive e-commerce space.
                         </p>
 
                         <h4>Market Analysis</h4>
                         <p>
-                          The sustainable fashion market is projected to grow at a CAGR of 11.6% from 2021 to 2025. Key
-                          drivers include:
+                          The e-commerce market continues to grow at a CAGR of 14.7% from 2023 to 2027. Key drivers include:
                         </p>
                         <ul>
-                          <li>Increasing consumer awareness of environmental issues</li>
-                          <li>Growing preference for brands with transparent supply chains</li>
-                          <li>Willingness to pay premium prices for sustainable products</li>
-                          <li>Regulatory pressure on fashion industry to reduce environmental impact</li>
+                          <li>Growing consumer comfort with online shopping</li>
+                          <li>Demand for personalized shopping experiences</li>
+                          <li>Interest in AI-powered shopping assistance</li>
+                          <li>Preference for omni-channel retail experiences</li>
                         </ul>
 
                         <h4>Product Offering</h4>
                         <p>Our initial product line will include:</p>
                         <ul>
-                          <li>Organic cotton apparel (t-shirts, dresses, pants)</li>
-                          <li>Accessories made from recycled materials</li>
-                          <li>Zero-waste packaging solutions</li>
-                          <li>Carbon-neutral shipping options</li>
+                          <li>Consumer electronics (smartphones, laptops, accessories)</li>
+                          <li>Fashion items for various demographics</li>
+                          <li>Home goods and decor</li>
+                          <li>Premium product recommendations via AI</li>
                         </ul>
 
-                        <h4>Marketing Strategy</h4>
-                        <p>Our marketing approach will focus on digital channels to reach our target demographic:</p>
+                        <h4>Technical Architecture</h4>
+                        <p>Our platform will be built with the following technology stack:</p>
                         <ul>
-                          <li>Content marketing highlighting sustainability practices</li>
-                          <li>Influencer partnerships with eco-conscious creators</li>
-                          <li>Social media campaigns emphasizing transparency</li>
-                          <li>Email marketing with educational content</li>
-                          <li>Targeted digital advertising on platforms frequented by our audience</li>
+                          <li>Next.js frontend for fast, responsive UI</li>
+                          <li>Node.js backend with RESTful APIs</li>
+                          <li>PostgreSQL database with Supabase integration</li>
+                          <li>AI chatbot powered by Claude API</li>
+                          <li>Stripe payment processing</li>
                         </ul>
 
                         <h4>Financial Projections</h4>
                         <p>Based on market research and comparable businesses, we project:</p>
                         <ul>
-                          <li>Year 1 Revenue: $100,000</li>
-                          <li>Year 2 Revenue: $250,000</li>
-                          <li>Year 3 Revenue: $500,000</li>
-                          <li>Break-even point: Month 18</li>
-                          <li>Gross margin: 45-50%</li>
+                          <li>Year 1 Revenue: $250,000</li>
+                          <li>Year 2 Revenue: $750,000</li>
+                          <li>Year 3 Revenue: $2,000,000</li>
+                          <li>Break-even point: Month 14</li>
+                          <li>Gross margin: 38-45%</li>
                         </ul>
 
                         <h4>Implementation Timeline</h4>
                         <p>Our phased approach ensures methodical growth and risk management:</p>
                         <ol>
-                          <li>Months 1-2: Business setup and supplier negotiations</li>
-                          <li>Month 3: Website development and initial inventory procurement</li>
-                          <li>Month 4: Official launch and marketing campaign</li>
-                          <li>Month 6: First performance review and strategy adjustment</li>
-                          <li>Month 12: Comprehensive business review and Year 2 planning</li>
+                          <li>Months 1-2: Platform development and AI integration</li>
+                          <li>Month 3: Beta testing and product onboarding</li>
+                          <li>Month 4: Full public launch with marketing campaign</li>
+                          <li>Month 6: First major feature update based on user feedback</li>
+                          <li>Month 12: Mobile app launch expanding our reach</li>
                         </ol>
                       </div>
                     </div>

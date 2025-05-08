@@ -2,10 +2,12 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { User as SupabaseUser } from '@supabase/supabase-js'
+import { getClient } from './supabase/client'
 
 type User = {
   id: string
-  name: string
+  name: string | null
   email: string
 } | null
 
@@ -13,11 +15,22 @@ type AuthContextType = {
   user: User
   login: (email: string, password: string) => Promise<void>
   signup: (name: string, email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+// Helper function to convert Supabase user to our app's user format
+const formatUser = (user: SupabaseUser | null): User => {
+  if (!user) return null
+  
+  return {
+    id: user.id,
+    name: user.user_metadata?.name || null,
+    email: user.email || '',
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null)
@@ -26,24 +39,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check if user is authenticated on mount
   useEffect(() => {
+    const supabase = getClient()
+    
+    // Get initial session
     const checkAuth = async () => {
       try {
-        // Check for auth cookie
-        const hasAuthCookie = document.cookie.includes('auth-token=')
+        setIsLoading(true)
         
-        if (hasAuthCookie) {
-          // In a real app, you would validate the token with your backend
-          // and get the user data
-          // For now, we'll just simulate a logged-in user
-          setUser({
-            id: "user-1",
-            name: "Demo User",
-            email: "user@example.com",
-          })
-          console.log("User authenticated via cookie")
+        // Get session data
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        // Set user if session exists
+        if (session) {
+          setUser(formatUser(session.user))
+          console.log("User authenticated via Supabase session")
         } else {
-          console.log("No auth cookie found")
-          // Ensure user is set to null if no cookie is found
+          console.log("No Supabase session found")
           setUser(null)
         }
       } catch (error) {
@@ -55,26 +66,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     checkAuth()
+    
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          setUser(formatUser(session.user))
+        } else {
+          setUser(null)
+        }
+        
+        setIsLoading(false)
+      }
+    )
+    
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     
     try {
-      // In a real app, this would be an API call to your auth endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const supabase = getClient()
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
       
-      // Simulate successful login
-      const newUser = {
-        id: "user-1",
-        name: "Demo User",
-        email: email,
+      if (error) {
+        throw error
       }
       
-      setUser(newUser)
-      
-      // Set auth cookie (in a real app, this would be done by your backend)
-      document.cookie = `auth-token=demo-token; path=/; max-age=${60 * 60 * 24 * 7}` // 1 week
+      setUser(formatUser(data.user))
       console.log("User logged in successfully")
       
       router.push("/")
@@ -90,23 +116,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true)
     
     try {
-      // In a real app, this would be an API call to your signup endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      const supabase = getClient()
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          },
+        },
+      })
       
-      // Simulate successful signup and login
-      const newUser = {
-        id: "user-1",
-        name: name,
-        email: email,
+      if (error) {
+        throw error
       }
       
-      setUser(newUser)
+      // Create a profile for the new user
+      if (data.user) {
+        try {
+          // First attempt: Use the API endpoint for profile creation
+          const response = await fetch('/api/profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name })
+          })
+          
+          if (!response.ok) {
+            throw new Error('API profile creation failed')
+          }
+          
+          console.log("User profile created successfully via API")
+        } catch (apiError) {
+          console.warn("API profile creation failed, trying direct DB access:", apiError)
+          
+          // Second attempt: Direct database access
+          try {
+            // Attempt to create a profile record
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert([
+                { 
+                  id: data.user.id,
+                  email: email,
+                  name: name,
+                }
+              ])
+            
+            if (profileError) {
+              console.error("Error creating profile after signup:", profileError)
+              // We don't throw here to allow the auth flow to continue even if profile creation fails
+            } else {
+              console.log("User profile created successfully via direct DB access")
+            }
+          } catch (dbError) {
+            console.error("Error in direct DB profile creation:", dbError)
+          }
+        }
+      }
       
-      // Set auth cookie
-      document.cookie = `auth-token=demo-token; path=/; max-age=${60 * 60 * 24 * 7}` // 1 week
+      setUser(formatUser(data.user))
       console.log("User signed up successfully")
       
-      router.push("/")
+      router.push("/dashboard")
     } catch (error) {
       console.error("Signup error:", error)
       throw error
@@ -115,16 +188,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    // Clear user state
-    setUser(null)
-    
-    // Remove auth cookie
-    document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-    console.log("User logged out")
-    
-    // Redirect to login
-    router.push("/login")
+  const logout = async () => {
+    try {
+      const supabase = getClient()
+      await supabase.auth.signOut()
+      
+      // Clear user state
+      setUser(null)
+      console.log("User logged out")
+      
+      // Redirect to login
+      router.push("/login")
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
   }
 
   const contextValue = {

@@ -1,16 +1,16 @@
-import type React from "react"
+import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import "./globals.css"
 import { AuthProvider } from "@/lib/auth"
+import { Toaster } from "@/components/ui/toaster"
+import { NavBar } from "@/components/ui/nav-bar"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "8gentc Platform",
-  description: "Collaborative business planning platform",
-  generator: 'v0.dev'
+  title: "8gentc - AI Business Plan Collaboration",
+  description: "Create and manage business plans with the help of AI",
 }
 
 export default function RootLayout({
@@ -19,16 +19,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
+    <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
+          <Toaster />
+          <SpeedInsights />
           {children}
         </AuthProvider>
-        <SpeedInsights />
       </body>
     </html>
   )
