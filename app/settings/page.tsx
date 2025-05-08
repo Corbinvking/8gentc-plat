@@ -12,10 +12,12 @@ import { useAuth } from "@/lib/auth"
 import { Loader2 } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
+import { Input } from "@/components/ui/input"
 
 export default function SettingsPage() {
-  const { user, isLoading } = useAuth()
   const router = useRouter()
+  const { user, isLoading } = useAuth()
+  const [redirecting, setRedirecting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [settings, setSettings] = useState({
     notifications: {
@@ -33,12 +35,46 @@ export default function SettingsPage() {
     }
   })
 
-  // Redirect unauthenticated users to login page
+  // Enhanced redirect logic with better error handling
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login')
+    // Only redirect if authentication check is complete (no longer loading)
+    if (!isLoading) {
+      if (!user) {
+        console.log("Settings page: No authenticated user found, redirecting to login")
+        setRedirecting(true)
+        
+        // Use a safe redirect approach
+        try {
+          router.push("/login")
+        } catch (error) {
+          console.error("Error during redirect:", error)
+          // Fallback to direct navigation if router fails
+          window.location.href = "/login"
+        }
+      } else {
+        console.log("Settings page: User is authenticated:", user.email)
+      }
     }
   }, [user, isLoading, router])
+
+  // Display loading state while checking auth or during redirect
+  if (isLoading || redirecting) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-orange-500"></div>
+          <p className="text-sm text-gray-500">
+            {redirecting ? "Redirecting to login..." : "Loading..."}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // If not authenticated, don't render anything (will redirect)
+  if (!user) {
+    return null
+  }
 
   const handleToggleChange = (category: string, setting: string, value: boolean) => {
     setSettings(prev => ({
@@ -61,21 +97,6 @@ export default function SettingsPage() {
         description: "Your preferences have been updated successfully.",
       })
     }, 1000)
-  }
-
-  // Show loading state while checking auth
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="h-8 w-8 rounded-full border-4 border-gray-300 border-t-orange-500 animate-spin"></div>
-        <span className="ml-3">Loading...</span>
-      </div>
-    )
-  }
-  
-  // If not authenticated, don't render anything (will redirect via effect)
-  if (!user) {
-    return null
   }
 
   return (

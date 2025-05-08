@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
+  const [authInitialized, setAuthInitialized] = useState(false)
 
   // Check if user is authenticated on mount
   useEffect(() => {
@@ -43,14 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Get initial session
     const checkAuth = async () => {
+      if (authInitialized) return; // Avoid duplicate auth checks
+      
       try {
         setIsLoading(true)
         
         // Get session data
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session }, error } = await supabase.auth.getSession()
         
+        if (error) {
+          console.error("Session retrieval error:", error.message);
+          setUser(null);
+        }
         // Set user if session exists
-        if (session) {
+        else if (session) {
           setUser(formatUser(session.user))
           console.log("User authenticated via Supabase session")
         } else {
@@ -62,14 +69,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
       } finally {
         setIsLoading(false)
+        setAuthInitialized(true)
       }
     }
 
-    checkAuth()
+    // Check auth with a slight delay in production to ensure cookies are loaded
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction) {
+      // In production, add a small delay to ensure cookies are properly loaded
+      const timer = setTimeout(() => {
+        checkAuth();
+      }, 200);
+      
+      return () => clearTimeout(timer);
+    } else {
+      // In development, check immediately
+      checkAuth();
+    }
     
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state change event:", event);
+        
         if (session) {
           setUser(formatUser(session.user))
         } else {
@@ -84,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [authInitialized])
 
   const login = async (email: string, password: string) => {
     setIsLoading(true)

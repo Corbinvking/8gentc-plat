@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    return NextResponse.json({ projects: data }, { status: 200 })
+    return NextResponse.json(data, { status: 200 })
   } catch (e) {
     console.error('Unexpected error in projects fetch:', e)
     return NextResponse.json(

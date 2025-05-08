@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/lib/auth"
 import { useToast } from "@/components/ui/use-toast"
+import { getClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -29,9 +30,25 @@ export default function LoginPage() {
 
   // Clear any existing auth cookies when login page loads
   useEffect(() => {
-    console.log("Login page loaded - clearing any existing auth cookies")
-    // Remove auth cookie to ensure clean login state
-    document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    console.log("Login page loaded - ensuring clean login state")
+    
+    // Force reset any potential auth state issues
+    try {
+      // When in a browser environment
+      if (typeof window !== 'undefined') {
+        const client = getClient();
+        // Clear session locally
+        client.auth.signOut({ scope: 'local' }).catch(err => {
+          console.error("Error clearing local session:", err);
+        });
+        
+        // Remove auth cookie to ensure clean login state
+        document.cookie = "sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=lax";
+        document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=lax";
+      }
+    } catch (e) {
+      console.error("Error during auth cleanup:", e);
+    }
   }, [])
 
   const handleLogin = async (e: React.FormEvent) => {

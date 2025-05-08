@@ -29,42 +29,68 @@ export type Project = {
   ai_generated: boolean
 }
 
-export function ProjectsList() {
-  const { user } = useAuth()
-  const [projects, setProjects] = useState<Project[]>([])
+// Define props interface
+interface ProjectsListProps {
+  limit?: number;
+}
+
+export const ProjectsList = ({ limit }: ProjectsListProps) => {
+  const [apiProjects, setApiProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
   
-  // Fetch projects data
-  const fetchProjects = async (status?: string) => {
-    if (!user) return // Don't fetch if not authenticated
-    
-    setIsLoading(true)
-    setError(null)
+  const fetchProjects = async () => {
+    // Skip fetch if user is not authenticated
+    if (!user) {
+      console.log("ProjectsList: Skipping project fetch - user not authenticated")
+      setIsLoading(false)
+      return
+    }
     
     try {
+      setIsLoading(true)
+      setError(null)
+      
+      // Add a timestamp to prevent caching issues
+      const timestamp = new Date().getTime()
       // Build URL with optional status filter
-      let url = '/api/projects'
-      if (status) {
-        url += `?status=${status}`
+      let url = `/api/projects?t=${timestamp}`
+      if (statusFilter) {
+        url += `&status=${statusFilter}`
       }
       
-      const response = await fetch(url)
+      console.log("Fetching projects from:", url)
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Use cache: 'no-store' to prevent caching issues
+        cache: 'no-store'
+      })
       
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch projects')
+        throw new Error(`Error fetching projects: ${response.status}`)
       }
       
-      // Get projects from API
       const data = await response.json()
-      let apiProjects = data.projects || [];
+      console.log("Projects API response:", data)
+      
+      // Ensure data is an array before processing
+      const projectsArray = Array.isArray(data) ? data : 
+                          (data.projects ? data.projects : [])
+      
+      console.log("Processed projects array:", projectsArray)
       
       // Add default "Com Store" project if it doesn't exist
-      const hasComStore = apiProjects.some((p: Project) => p.name === "Com Store");
+      const hasComStore = projectsArray.some((p: Project) => p.name === "Com Store")
       
-      if (!hasComStore) {
+      let finalProjects = [...projectsArray]
+      
+      if (!hasComStore && user) {
         // Add a default project
         const defaultProject = {
           id: "com-store-default",
@@ -77,30 +103,65 @@ export function ProjectsList() {
           ai_generated: true
         };
         
-        apiProjects = [defaultProject, ...apiProjects];
+        finalProjects.unshift(defaultProject);
       }
       
-      setProjects(apiProjects);
-    } catch (e: any) {
-      console.error('Error fetching projects:', e)
-      setError(e.message || 'Error loading projects')
+      console.log("Final projects to display:", finalProjects)
+      setApiProjects(finalProjects)
+    } catch (err: any) {
+      console.error("Error fetching projects:", err)
+      console.log("Using fallback project data")
       
-      // Still create a default project on error
-      const defaultProject = {
-        id: "com-store-default",
-        name: "Com Store",
-        description: "E-commerce platform with AI-powered customer service and product recommendations.",
-        status: "in-progress" as const,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        user_id: user?.id || "",
-        ai_generated: true
-      };
+      // Fallback to default projects on error
+      const fallbackProjects = [
+        {
+          id: "com-store-default",
+          name: "Com Store",
+          description: "E-commerce platform with AI-powered customer service and product recommendations.",
+          status: "in-progress" as const,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: user?.id || "",
+          ai_generated: true
+        },
+        {
+          id: "portfolio-demo",
+          name: "Portfolio Website",
+          description: "Personal portfolio website showcasing projects and skills.",
+          status: "completed" as const,
+          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          user_id: user?.id || "",
+          ai_generated: true
+        }
+      ];
       
-      setProjects([defaultProject]);
+      setApiProjects(fallbackProjects);
+      setError("DEMO_MODE");
     } finally {
       setIsLoading(false)
     }
+  }
+  
+  useEffect(() => {
+    // Only fetch projects if user is authenticated
+    if (user) {
+      console.log("User authenticated, fetching projects...")
+      fetchProjects()
+    } else {
+      console.log("User not authenticated, skipping project fetch")
+      setIsLoading(false)
+    }
+  }, [user, statusFilter])
+  
+  // Don't render anything if user is not authenticated
+  if (!user) {
+    return null
+  }
+  
+  // Handle status filter change
+  const handleStatusFilter = (status: string | null) => {
+    setStatusFilter(status)
   }
   
   // Delete a project
@@ -130,7 +191,7 @@ export function ProjectsList() {
       }
       
       // Update the projects list
-      setProjects(projects.filter(project => project.id !== projectId))
+      setApiProjects(apiProjects.filter(project => project.id !== projectId))
       toast({
         title: "Project deleted",
         description: "The project has been successfully deleted.",
@@ -143,23 +204,6 @@ export function ProjectsList() {
         variant: "destructive",
       })
     }
-  }
-  
-  // Load projects when component mounts and user is authenticated
-  useEffect(() => {
-    if (user) {
-      fetchProjects(statusFilter || undefined)
-    }
-  }, [statusFilter, user])
-  
-  // Handle status filter change
-  const handleStatusFilter = (status: string | null) => {
-    setStatusFilter(status)
-  }
-  
-  // Don't render if not authenticated
-  if (!user) {
-    return null
   }
   
   return (
@@ -197,7 +241,7 @@ export function ProjectsList() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" variant="outline" onClick={() => fetchProjects(statusFilter || undefined)}>
+          <Button size="sm" variant="outline" onClick={() => fetchProjects()}>
             <RefreshCcw className="h-4 w-4 mr-2" />
             <span>Refresh</span>
           </Button>
@@ -229,11 +273,21 @@ export function ProjectsList() {
           <div className="h-8 w-8 rounded-full border-4 border-gray-300 border-t-orange-500 animate-spin"></div>
           <span className="ml-3">Loading projects...</span>
         </div>
+      ) : error === "DEMO_MODE" ? (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 p-4 rounded mb-6">
+          <div className="flex items-center">
+            <svg className="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">Demo Mode:</span>
+            <span className="ml-1">Showing sample projects. Database connection will be restored soon.</span>
+          </div>
+        </div>
       ) : error ? (
         <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded">
           {error}
         </div>
-      ) : projects.length === 0 ? (
+      ) : apiProjects.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 p-8 rounded-md text-center">
           <h3 className="text-xl font-medium text-gray-700 mb-2">No projects found</h3>
           <p className="text-gray-500 mb-6">
@@ -250,7 +304,7 @@ export function ProjectsList() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
+          {apiProjects.map((project) => (
             <Card key={project.id} className="overflow-hidden">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">

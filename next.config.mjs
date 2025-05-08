@@ -9,6 +9,13 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
+  },
+  onDemandEntries: {
+    maxInactiveAge: 60 * 1000,
+  },
+  reactStrictMode: false,
 }
 
 export default nextConfig
