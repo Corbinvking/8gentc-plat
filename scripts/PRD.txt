@@ -1,0 +1,149 @@
+<context>
+# Overview  
+8gentcAI is an AI-powered business planning collaboration platform that allows individuals and teams to co-create, visualize, and iterate on strategic plans. Targeted at entrepreneurs, consultants, and small-to-mid‑sized businesses, it solves the problem of fragmented planning tools by combining an AI-driven chat interface with structured knowledge‑asset outputs (node graphs, Mermaid diagrams, formatted plan documents) in a single, persistent environment. Value arises from rapid, guided plan generation, visual clarity, and seamless persistence of ideas across sessions and sections.
+
+# Core Features
+
+* **Secure Authentication & Project Management**
+
+  * What it does: Provides user sign-up, login, and per-user project isolation.
+  * Why it’s important: Protects sensitive business data and organizes planning into discrete workspaces.
+  * How it works: Uses Supabase Auth with JWT/cookie sessions and row-level security; ties each project to its creator in the database.
+
+* **AI‑Driven Chat Across Sections**
+
+  * What it does: Enables guided conversation in three planning sections—Context, Goals, Timelines—with AI assistance.
+  * Why it’s important: Breaks down planning into manageable steps while preserving section-specific focus.
+  * How it works: Each section has its own conversation stored in Supabase; AI calls use function calling to output structured JSON or text.
+
+* **Knowledge Asset Visualizations**
+
+  * What it does: Generates node graphs, Mermaid flowcharts, and formatted plan text based on chat history and user prompts.
+
+  * Why it’s important: Translates abstract ideas into clear visual artifacts that aid understanding and communication.
+
+  * How it works: Backend AI endpoints (`/api/ai/graph`, `/api/ai/diagram`, `/api/ai/plan`) invoke OpenAI functions, parse JSON (nodes, edges, code), store results in Supabase tables, and render via React Flow and Mermaid libraries.
+
+* **Persistent Data Storage**
+
+  * What it does: Saves all user inputs, AI responses, graphs, and plan documents across sessions.
+  * Why it’s important: Ensures work continuity and auditability; allows incremental builds and revisions.
+  * How it works: Uses Supabase Postgres with tables for Users, Projects, Nodes, Edges, PlanSections, Diagrams, Conversations, Messages.
+
+* **Context Sharing & Summaries**
+
+  * What it does: Summarizes completed sections and injects insights into subsequent sections to maintain coherence.
+
+  * Why it’s important: Prevents repetition, aligns goals with context, and builds a unified narrative.
+
+  * How it works: Periodically invokes OpenAI summarization, stores an Insight record in Supabase, and includes that summary as a system message in related chats.
+
+    </context>
+
+<PRD>
+# Technical Architecture  
+- **System Components**:  
+  - Frontend: Next.js (App Router), React Flow for graphs, @mermaid-js/react for diagrams, Vercel Edge Functions.  
+  - Backend: Next.js API Routes on Vercel; Supabase Auth and Postgres; Redis for caching (optional).  
+  - AI Integration: OpenAI function calling via Vercel AI SDK.  
+  - Storage: Supabase Postgres tables; Supabase Storage for file exports.  
+
+* **Data Models**:
+
+  * Supabase tables for User, Project, Node, Edge, PlanSection, Diagram, Conversation, Message, AiCache, Insight.
+* **APIs & Integrations**:
+
+  * Auth: Supabase Auth with row‑level security (RLS).
+  * CRUD: `/api/projects/*`, `/api/nodes/*`, `/api/edges/*`, `/api/plan-sections/*`, `/api/diagrams/*`, `/api/conversations/*`.
+  * AI: `/api/ai/plan`, `/api/ai/graph`, `/api/ai/diagram` (with structured function definitions).
+* **Infrastructure**:
+
+  * Hosting: Vercel (serverless functions, Edge).
+  * Database: Supabase Postgres (managed, with PgBouncer pooling).
+  * Cache: Redis or Supabase Edge Cache (for AI response caching).
+  * Monitoring: Vercel Analytics, Supabase Dashboard.
+
+# Development Roadmap
+
+**Phase 1: Foundation**
+
+* Configure Supabase project: enable Auth, set up RLS policies, and create initial tables via migrations.
+* Implement user sign-up/login and session management using Supabase Auth client.
+* Build project list and creation UI; connect to `/api/projects` endpoints.
+
+**Phase 2: Core Chat & Persistence**
+
+* Define Conversations and Messages tables in Supabase.
+* Integrate chat UI (tabs: Context, Goals, Timeline); save and load messages via Supabase.
+* Add system message injection for context summaries.
+
+**Phase 3: AI‑Driven Plan Generation**
+
+* Define OpenAI function schemas (`generatePlanSection`, `generateNodeGraph`, `generateMermaidDiagram`).
+* Implement AI endpoints (`/api/ai/*`) using Vercel AI SDK; parse and store outputs in Supabase.
+* Render generated plan sections in UI; allow minimal user edits.
+
+**Phase 4: Visualization & Editor**
+
+* Implement `/api/ai/graph` and `/api/ai/diagram` endpoints.
+* Upsert Node and Edge rows in Supabase from AI response.
+* Build React Flow canvas for node editing; save user edits back to Supabase.
+* Render Mermaid code for diagrams via @mermaid-js/react; allow code edits and regeneration.
+
+**Phase 5: Performance & Caching**
+
+* Implement caching of AI responses using Supabase Edge Cache or Redis.
+* Add rate limiting for AI calls.
+* Optimize Supabase queries and ensure indexes on key columns.
+* Monitor performance using Supabase metrics and Vercel logs.
+
+**Phase 6: Future Enhancements**
+
+* Real‑time collaboration via Supabase Realtime subscriptions.
+* Granular role-based access (project sharing).
+* Versioning and historical snapshots; export and import plan snapshots.
+* Semantic memory layer (vector embeddings) for richer context recall.
+
+# Logical Dependency Chain
+
+1. **Authentication & Supabase Setup**
+2. **Project CRUD & UI**
+3. **Chat Conversation Storage & UI**
+4. **AI Plan Generation Endpoints**
+5. **Graph & Diagram Generation**
+6. **Canvas & Diagram Rendering**
+7. **Caching & Rate Controls**
+8. **Collaboration & Sharing**
+
+# Risks and Mitigations
+
+* **AI Cost & Latency**: Excessive OpenAI usage can drive up costs.
+
+  * *Mitigation:* Cache repeated queries; batch summarization; tune model settings.
+
+* **Connection Overhead**: Many serverless connections to Postgres.
+
+  * *Mitigation:* Rely on Supabase’s built‑in pooling; use Supabase Edge functions.
+
+* **Scope Creep**: Overloading MVP with too many features.
+
+  * *Mitigation:* Strict phase-based roadmap; focus on core chat + plan outputs first.
+
+* **Graph Sync Conflicts**: Merging AI-generated graph with manual edits.
+
+  * *Mitigation:* Treat AI output as initial import; track diffs; allow manual reconciliation.
+
+# Appendix
+
+* **Research Findings**:
+
+  * Supabase Auth with RLS vs. other auth options.
+  * OpenAI function calling for structured JSON.
+  * Caching strategies (Edge, Redis).
+
+* **Technical Specs**:
+
+  * Supabase SQL definitions for tables.
+  * Function definitions for `generatePlanSection`, `generateNodeGraph`, `generateMermaidDiagram`.
+
+</PRD>
