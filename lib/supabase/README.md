@@ -2,7 +2,7 @@
 
 This document outlines how to set up Supabase for the 8gentc platform.
 
-## Creating a Supabase Project
+## Creating a Supabase Project.
 
 1. Go to [Supabase](https://supabase.com/) and sign up or log in
 2. Create a new project by clicking "New Project"
